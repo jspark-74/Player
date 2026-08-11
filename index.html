@@ -13,7 +13,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/cat-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/cat-apple-180.png">
 <meta name="application-name" content="승언리_음악다방">
-<meta name="apple-mobile-web-app-title" content="음악다방">
+<meta name="apple-mobile-web-app-title" content="승언리_음악다방">
 
 <!-- 카카오톡·메시지에 링크를 붙였을 때 뜨는 미리보기 카드.
      og:image 는 반드시 절대 주소여야 카카오가 읽는다 -->
@@ -367,18 +367,16 @@ body.playing #deckled{background:var(--c2);box-shadow:0 0 0 1px rgba(0,0,0,.7),0
 }
 #empty .btns button:active{transform:scale(.97)}
 #empty .btns button.ghost{background:var(--surf-1);border:1px solid var(--line);color:var(--tx)}
-/* 앱 설치 — 표지에 두는 단추. 무엇이 저장되는지 두 줄로 분명히 말한다 */
+/* 앱 설치 — 표지 맨 아래 작게. 주된 일은 곡을 고르는 것이므로 눈에 덜 띄어야 한다 */
 #btnSave{
-  display:none;align-items:center;gap:11px;margin-top:6px;
-  min-height:56px;padding:10px 20px;border-radius:var(--r3);text-align:left;
-  color:var(--tx);background:var(--surf-1);
-  border:1px solid var(--line);box-shadow:var(--shadow-1);
+  display:none;align-items:center;gap:6px;margin-top:2px;
+  padding:8px 12px;border-radius:var(--rp);
+  font-size:var(--t1);font-weight:600;color:var(--tx3);
+  background:none;border:0;
 }
-#btnSave svg{width:22px;height:22px;fill:var(--c1);flex:0 0 auto}
-#btnSave .lb{display:flex;flex-direction:column;line-height:1.25}
-#btnSave .lb b{font-size:var(--t3);font-weight:700}
-#btnSave .lb i{font-style:normal;font-size:var(--t1);color:var(--tx3);margin-top:2px}
-#btnSave:active{background:var(--surf-3);transform:scale(.98)}
+#btnSave svg{width:14px;height:14px;fill:currentColor;flex:0 0 auto}
+#btnSave:active{color:var(--c1)}
+@media (hover:hover){ #btnSave:hover{color:var(--c1)} }
 
 /* ---------- 알림 · 경고 ---------- */
 #codecwarn{
@@ -778,13 +776,14 @@ body.car #floatbar svg{width:28px;height:28px}
           <button id="btnFolder2">폴더 열기</button>
           <button class="ghost" id="btnFiles2">파일 고르기</button>
         </div>
-        <button id="btnSave" title="이 앱을 휴대폰에 설치합니다">
-          <svg viewBox="0 0 24 24"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4l-4.7-4.7 1.4-1.4L12 13.6V3h0zM5 19h14v2H5z"/></svg>
-          <span class="lb"><b>앱 설치</b><i id="saveSub">홈 화면에 아이콘이 생겨요</i></span>
-        </button>
+
         <p id="emptyKeys" style="margin-top:8px;color:#5a6072">
           <kbd>Space</kbd> 재생 · <kbd>F</kbd> 전체화면 · <kbd>E</kbd> 음향설정 · <kbd>?</kbd> 단축키
         </p>
+        <button id="btnSave" title="이 앱을 휴대폰에 설치합니다">
+          <svg viewBox="0 0 24 24"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4l-4.7-4.7 1.4-1.4L12 13.6V3h0zM5 19h14v2H5z"/></svg>
+          <span id="saveSub">앱으로 설치</span>
+        </button>
       </div>
 
       <div id="floatbar">
@@ -2573,7 +2572,7 @@ function installState(){
   const btn=$('btnSave'); if(!btn) return;
   btn.style.display = (isInstalled() || location.protocol==='file:') ? 'none' : 'inline-flex';
   const sub=$('saveSub');
-  if(sub) sub.textContent = inApp ? '크롬으로 열어야 설치됩니다' : '홈 화면에 아이콘이 생겨요';
+  if(sub) sub.textContent = inApp ? '크롬으로 열어야 설치돼요' : '앱으로 설치';
 }
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvent=e; installState(); });
 window.addEventListener('appinstalled', ()=>{ installEvent=null; installState(); toast('홈 화면에 저장했습니다'); });
