@@ -367,15 +367,18 @@ body.playing #deckled{background:var(--c2);box-shadow:0 0 0 1px rgba(0,0,0,.7),0
 }
 #empty .btns button:active{transform:scale(.97)}
 #empty .btns button.ghost{background:var(--surf-1);border:1px solid var(--line);color:var(--tx)}
-/* 홈 화면에 저장 — 표지에 두는 내려받기 단추 */
+/* 앱 설치 — 표지에 두는 단추. 무엇이 저장되는지 두 줄로 분명히 말한다 */
 #btnSave{
-  display:none;align-items:center;gap:8px;margin-top:2px;
-  min-height:44px;padding:11px 18px;border-radius:var(--rp);
-  font-size:var(--t2);font-weight:700;color:var(--tx2);
-  background:var(--surf-1);border:1px dashed var(--line-ctl);
+  display:none;align-items:center;gap:11px;margin-top:6px;
+  min-height:56px;padding:10px 20px;border-radius:var(--r3);text-align:left;
+  color:var(--tx);background:var(--surf-1);
+  border:1px solid var(--line);box-shadow:var(--shadow-1);
 }
-#btnSave svg{width:18px;height:18px;fill:currentColor}
-#btnSave:active{background:var(--surf-3);transform:scale(.97)}
+#btnSave svg{width:22px;height:22px;fill:var(--c1);flex:0 0 auto}
+#btnSave .lb{display:flex;flex-direction:column;line-height:1.25}
+#btnSave .lb b{font-size:var(--t3);font-weight:700}
+#btnSave .lb i{font-style:normal;font-size:var(--t1);color:var(--tx3);margin-top:2px}
+#btnSave:active{background:var(--surf-3);transform:scale(.98)}
 
 /* ---------- 알림 · 경고 ---------- */
 #codecwarn{
@@ -775,9 +778,9 @@ body.car #floatbar svg{width:28px;height:28px}
           <button id="btnFolder2">폴더 열기</button>
           <button class="ghost" id="btnFiles2">파일 고르기</button>
         </div>
-        <button id="btnSave" title="홈 화면에 저장">
+        <button id="btnSave" title="이 앱을 휴대폰에 설치합니다">
           <svg viewBox="0 0 24 24"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4l-4.7-4.7 1.4-1.4L12 13.6V3h0zM5 19h14v2H5z"/></svg>
-          홈 화면에 저장
+          <span class="lb"><b>앱 설치</b><i id="saveSub">홈 화면에 아이콘이 생겨요</i></span>
         </button>
         <p id="emptyKeys" style="margin-top:8px;color:#5a6072">
           <kbd>Space</kbd> 재생 · <kbd>F</kbd> 전체화면 · <kbd>E</kbd> 음향설정 · <kbd>?</kbd> 단축키
@@ -2560,10 +2563,17 @@ const isInstalled = () =>
   matchMedia('(display-mode: fullscreen)').matches ||
   window.navigator.standalone === true;
 
+/* 카카오톡·네이버·인스타 같은 앱 안의 브라우저에서는 설치 자체가 불가능하다.
+   링크를 눌러 들어온 사람 대부분이 여기에 해당하므로 반드시 알려 줘야 한다 */
+const inApp = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp/i
+                .test(navigator.userAgent);
+
 /* 이미 설치했거나 파일로 연 경우에는 버튼을 숨긴다 */
 function installState(){
   const btn=$('btnSave'); if(!btn) return;
   btn.style.display = (isInstalled() || location.protocol==='file:') ? 'none' : 'inline-flex';
+  const sub=$('saveSub');
+  if(sub) sub.textContent = inApp ? '크롬으로 열어야 설치됩니다' : '홈 화면에 아이콘이 생겨요';
 }
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvent=e; installState(); });
 window.addEventListener('appinstalled', ()=>{ installEvent=null; installState(); toast('홈 화면에 저장했습니다'); });
@@ -2575,8 +2585,25 @@ $('btnSave').addEventListener('click', async()=>{
     installEvent=null; installState();
     return;
   }
-  /* 사파리와 삼성 인터넷은 설치 신호를 주지 않는다. 그때만 방법을 알려 준다 */
   const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  if(inApp){
+    /* 앱 안의 브라우저 — 주소를 복사해 주고 크롬으로 옮기게 한다 */
+    let ok=false;
+    try{ await navigator.clipboard.writeText(location.href); ok=true; }catch(e){
+      const ta=document.createElement('textarea');
+      ta.value=location.href; ta.style.cssText='position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      try{ ok=document.execCommand('copy'); }catch(e2){}
+      document.body.removeChild(ta);
+    }
+    alert('지금은 카카오톡 안의 브라우저라 설치할 수 없습니다.\n\n'
+        + (ok ? '주소를 복사해 두었습니다.\n\n' : '')
+        + '1. 오른쪽 아래 ⋮ 를 누릅니다\n'
+        + '2. 「다른 브라우저로 열기」 또는 「Chrome으로 열기」\n'
+        + '3. 크롬에서 다시 이 단추를 누르면 설치됩니다');
+    return;
+  }
+  /* 사파리와 삼성 인터넷은 설치 신호를 주지 않는다. 그때만 방법을 알려 준다 */
   alert(ios ? '사파리 아래쪽 공유 단추(⬆) → 홈 화면에 추가'
             : '브라우저 메뉴(⋮) → 홈 화면에 추가');
 });
