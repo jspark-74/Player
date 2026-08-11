@@ -852,6 +852,19 @@ body.car #floatbar svg{width:28px;height:28px}
       <!-- 음향 -->
       <div class="tabpage on" data-page="snd">
         <div class="grp">
+          <h3>소리 크기</h3>
+          <div class="ctlrow">
+            <label>음량</label>
+            <input type="range" id="volPanel" min="0" max="100" value="100" aria-label="음량">
+            <span class="val" id="volPanelV">100%</span>
+          </div>
+          <div class="btnline">
+            <button id="btnMutePanel">음소거 켜기</button>
+            <button id="btnSoundFix">소리가 안 나요</button>
+          </div>
+          <div class="note" style="margin-top:10px"><span id="soundState">확인 전</span></div>
+        </div>
+        <div class="grp">
           <h3>음색 프리셋</h3>
           <div class="chips" id="eqPresets"></div>
         </div>
@@ -1946,7 +1959,20 @@ media.addEventListener('play',()=>{
   if(AE.ok && S.lp) AE.noiseMaster.gain.setTargetAtTime(1, AE.ctx.currentTime, 0.15);
   keepAwake(true);
   startViz();
+  /* 재생은 되는데 소리가 안 나는 상태를 스스로 알아채 알려 준다.
+     스펙트럼은 출력단 앞에서 재므로, 막대가 춤춰도 소리는 없을 수 있다 */
+  clearTimeout(silentTimer);
+  silentTimer=setTimeout(()=>{
+    if(media.paused) return;
+    let why=null;
+    if(media.muted)              why='음소거가 켜져 있습니다';
+    else if(userVol===0)         why='음량이 0 입니다';
+    else if(AE.ok && AE.ctx.state!=='running') why='음향 엔진이 멈춰 있습니다';
+    if(why) toast(why+' — 음향 탭의 「소리가 안 나요」를 누르십시오', 5000);
+    soundState();
+  }, 1200);
 });
+let silentTimer=null;
 media.addEventListener('pause',()=>{
   document.body.classList.remove('playing');
   $('icPlay').style.display=''; $('icPause').style.display='none';
@@ -2201,7 +2227,55 @@ function syncMute(){
   $('icVol').style.display=off?'none':'';
   $('icMute').style.display=off?'':'none';
 }
-$('btnMute').addEventListener('click',()=>{ media.muted=!media.muted; applyVolume(); syncMute(); });
+$('btnMute').addEventListener('click',()=>{ media.muted=!media.muted; applyVolume(); syncMute(); soundState(); });
+
+/* ── 소리 문제 해결 ─────────────────────────────────────────────────
+   폰에서는 조작줄에 음량·음소거가 없다(자리가 없어 숨겼다).
+   그래서 소리가 꺼져 있으면 손쓸 방법이 없어진다. 여기에 그 두 개를 둔다. */
+const volP=$('volPanel');
+volP.value=Math.round(userVol*100); fill(volP);
+$('volPanelV').textContent=Math.round(userVol*100)+'%';
+volP.addEventListener('input',e=>{
+  userVol=e.target.value/100; media.muted=false;
+  fill(e.target); $('volPanelV').textContent=e.target.value+'%';
+  save('volume',userVol); applyVolume(); syncMute(); soundState();
+  vol.value=Math.round(userVol*100); fill(vol);
+});
+$('btnMutePanel').addEventListener('click',()=>{
+  media.muted=!media.muted; applyVolume(); syncMute(); soundState();
+  $('btnMutePanel').textContent = media.muted ? '음소거 풀기' : '음소거 켜기';
+});
+
+function soundState(){
+  const el=$('soundState'); if(!el) return;
+  const bad=[];
+  if(media.muted) bad.push('음소거가 켜져 있습니다');
+  if(userVol===0) bad.push('음량이 0 입니다');
+  if(fadeMul<0.99) bad.push('잠자기 타이머가 소리를 줄이는 중입니다');
+  if(AE.failed) bad.push('음향 엔진을 못 만들어 원본 그대로 재생 중입니다');
+  else if(AE.ok && AE.ctx.state!=='running') bad.push('음향 엔진이 멈춰 있습니다 ('+AE.ctx.state+')');
+  el.textContent = bad.length
+    ? '⚠ ' + bad.join(' · ')
+    : `이상 없음 · 음량 ${Math.round(userVol*100)}% · 엔진 ${AE.ok?AE.ctx.state:'미사용'}`;
+  return bad;
+}
+
+/* 한 번 눌러 소리를 되살린다 — 원인을 하나씩 되돌린다 */
+$('btnSoundFix').addEventListener('click',async()=>{
+  media.muted=false;
+  if(userVol<0.2) userVol=1;
+  fadeMul=1; setSleep(0);
+  vol.value=Math.round(userVol*100); fill(vol);
+  volP.value=Math.round(userVol*100); fill(volP);
+  $('volPanelV').textContent=Math.round(userVol*100)+'%';
+  save('volume',userVol);
+  buildEngine();
+  if(AE.ok){ try{ await AE.ctx.resume(); }catch(e){} }
+  applyVolume(); syncMute();
+  const bad=soundState();
+  $('btnMutePanel').textContent='음소거 켜기';
+  toast(bad && bad.length ? '아직 문제가 남았습니다 — 아래 설명을 보십시오' : '소리를 되살렸습니다 · 음량 '+Math.round(userVol*100)+'%', 3600);
+});
 
 $('speed').value=String(load('rate',1));
 media.playbackRate=load('rate',1);
@@ -2424,6 +2498,12 @@ function diagRows(){
     ['화면 전송·AirPlay',  yn(!!((v.remote&&v.remote.prompt)||v.webkitShowPlaybackTargetPicker))],
     ['폴더 통째로 열기',   yn(!!window.showDirectoryPicker, '됨', '안 됨 · 파일 고르기만')],
     ['보안 연결',          yn(!!window.isSecureContext, '됨', '아님 · 일부 기능 제한')],
+    /* 소리가 안 난다는 신고가 잦아 지금 상태를 그대로 보여 준다 */
+    ['지금 음량',          userVol===0 ? ['0 %','no'] : [Math.round(userVol*100)+' %','ok']],
+    ['음소거',             media.muted ? ['켜짐','no'] : ['꺼짐','ok']],
+    ['음향 엔진',          AE.failed ? ['못 만듦 · 원본 재생','mid']
+                          : AE.ok ? (AE.ctx.state==='running' ? ['정상','ok'] : [AE.ctx.state,'no'])
+                          : ['아직 안 켬','mid']],
   ];
 }
 function runDiag(){
@@ -2584,6 +2664,8 @@ function openSide(){
 }
 function openPanel(){
   buildEngine();
+  /* 패널을 열 때마다 다시 잰다. 켤 때 한 번 잰 값은 이미 낡았다 */
+  try{ runDiag(); soundState(); }catch(e){}
   if(isNarrow()){ $('side').classList.remove('open'); $('panel').classList.add('open'); $('backdrop').classList.add('on'); }
   else $('panel').classList.toggle('open');
 }
@@ -2877,7 +2959,8 @@ applyTheme();
 $('togMood').classList.toggle('on', S.mood);
 if(S.mood) paintMood(); else resetMood();
 refreshVizColors();
-plRefresh(); abSync(); runDiag();
+plRefresh(); abSync(); runDiag(); soundState();
+$('btnMutePanel').textContent = media.muted ? '음소거 풀기' : '음소거 켜기';
 
 /* 오프라인 담당 — http(s) 로 열렸을 때만. file:// 에서는 조용히 넘어간다 */
 if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
