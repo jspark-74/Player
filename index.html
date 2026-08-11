@@ -7,19 +7,19 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>플레이어</title>
+<title>승언리_음악다방</title>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/cat-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/cat-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="icons/cat-apple-180.png">
-<meta name="application-name" content="플레이어">
-<meta name="apple-mobile-web-app-title" content="플레이어">
+<meta name="application-name" content="승언리_음악다방">
+<meta name="apple-mobile-web-app-title" content="음악다방">
 
 <!-- 카카오톡·메시지에 링크를 붙였을 때 뜨는 미리보기 카드.
      og:image 는 반드시 절대 주소여야 카카오가 읽는다 -->
 <meta property="og:type"        content="website">
-<meta property="og:site_name"   content="플레이어">
-<meta property="og:title"       content="플레이어 — 광고 없는 음악·영상 재생기">
+<meta property="og:site_name"   content="승언리_음악다방">
+<meta property="og:title"       content="승언리_음악다방 — 광고 없는 음악·영상 재생기">
 <meta property="og:description" content="mp3·mp4를 광고 없이. 이퀄라이저와 LP 음질, 오프라인 재생까지. 파일은 이 기기를 벗어나지 않습니다.">
 <meta property="og:url"         content="https://jspark-74.github.io/Player/">
 <meta property="og:image"       content="https://jspark-74.github.io/Player/icons/share-1200x630.png">
@@ -28,7 +28,7 @@
 <meta property="og:image:alt"   content="LP판과 헤드폰 쓴 고양이">
 <meta property="og:locale"      content="ko_KR">
 <meta name="twitter:card"        content="summary_large_image">
-<meta name="twitter:title"       content="플레이어 — 광고 없는 음악·영상 재생기">
+<meta name="twitter:title"       content="승언리_음악다방 — 광고 없는 음악·영상 재생기">
 <meta name="twitter:description" content="mp3·mp4를 광고 없이. 파일은 이 기기를 벗어나지 않습니다.">
 <meta name="twitter:image"       content="https://jspark-74.github.io/Player/icons/share-1200x630.png">
 <meta name="description"         content="광고 없는 음악·영상 재생기. 이퀄라이저·LP 음질·오프라인 재생. 파일은 이 기기를 벗어나지 않습니다.">
@@ -671,7 +671,7 @@ body.car #floatbar svg{width:28px;height:28px}
     <div id="sidehead">
       <div class="brand">
         <span class="logo"><svg class="lpico"><use href="#lpmark"/></svg></span>
-        <b>플레이어</b>
+        <b>승언리_음악다방</b>
         <button class="x" id="sideClose"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
       </div>
       <div class="openbar">
@@ -1863,7 +1863,7 @@ async function play(index, opt){
   $('artSub').textContent=sub||t.name;
   $('barTitle').textContent=title;
   $('barSub').textContent=sub||t.path;
-  document.title=title+' — 플레이어';
+  document.title=title+' — 음악다방';
 
   const cover=$('cover');
   if(curArtUrl){ URL.revokeObjectURL(curArtUrl); curArtUrl=null; }
@@ -2242,7 +2242,7 @@ $('btnClear').addEventListener('click',()=>{
   $('art').classList.remove('show'); media.classList.remove('show');
   $('barTitle').textContent='재생할 파일이 없습니다';
   $('barSub').textContent='폴더를 열거나 파일을 끌어놓으세요';
-  document.title='플레이어';
+  document.title='승언리_음악다방';
 });
 $('search').addEventListener('input',e=>{ S.filter=e.target.value.trim(); render(); });
 $('cwClose').addEventListener('click',clearCodecWarn);
