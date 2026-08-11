@@ -1059,10 +1059,15 @@ body.car #floatbar svg{width:28px;height:28px}
   </aside>
 
   <div id="backdrop"></div>
+
+  <!-- 파일 선택 입력은 반드시 #app 안에 두어야 한다.
+       바깥에 두면 전체화면일 때 렌더 트리에서 빠져 click() 이 아무 일도 하지 않는다 -->
+  <input id="fileInput" type="file" multiple
+         accept="audio/*,video/*,.mp3,.m4a,.flac,.wav,.ogg,.opus,.aac,.mp4,.m4v,.webm,.mov" hidden>
+  <input id="dirInput" type="file" webkitdirectory directory multiple hidden>
 </div>
 
-<input id="fileInput" type="file" multiple accept="audio/*,video/*,.mp3,.m4a,.flac,.wav,.ogg,.opus,.aac,.mp4,.m4v,.webm,.mov" hidden>
-<input id="dirInput" type="file" webkitdirectory directory multiple hidden>
+
 
 <script>
 'use strict';
@@ -1595,12 +1600,25 @@ function addTracks(list, label){
   toast(`${fresh.length}개 추가${label?' · '+label:''}`);
   if(had===0 && S.tracks.length) play(S.order[0], {autoplay:false});
 }
+/* 폴더 열기가 실패했을 때 갈 곳.
+   안드로이드 크롬은 webkitdirectory 를 지원하지 않으므로 그리로 보내면 아무 일도 안 일어난다.
+   손가락으로 쓰는 기기에서는 무조건 파일 다중 선택으로 보낸다. */
+function fallbackPick(){
+  ( (isTouch || !supportsDirInput()) ? $('fileInput') : $('dirInput') ).click();
+}
+function supportsDirInput(){
+  return 'webkitdirectory' in document.createElement('input');
+}
+/* showDirectoryPicker 가 '있다'고 해서 실제로 되는 것은 아니다.
+   폰에서는 있어도 호출이 실패하므로 손가락 기기는 처음부터 제외한다 */
+function canPickFolder(){
+  return !isTouch && typeof window.showDirectoryPicker === 'function';
+}
 async function openFolder(){
-  /* 안드로이드·아이폰 크롬/사파리는 폴더 접근 자체가 없다. 파일 다중 선택으로 넘긴다 */
-  if(!window.showDirectoryPicker){ (isTouch ? $('fileInput') : $('dirInput')).click(); return; }
+  if(!canPickFolder()){ fallbackPick(); return; }
   let dir;
   try{ dir=await window.showDirectoryPicker({id:'media', mode:'read'}); }
-  catch(e){ if(e && e.name==='AbortError') return; $('dirInput').click(); return; }
+  catch(e){ if(e && e.name==='AbortError') return; fallbackPick(); return; }
   toast('폴더를 읽는 중…', 9000);
   const out=[];
   try{ await walkDirHandle(dir,'',out,0); }
@@ -2835,11 +2853,17 @@ window.addEventListener('keydown',e=>{
 if(isTouch){
   $('emptyHead').textContent='음악·영상 파일을 골라 담으세요';
   $('emptyKeys').style.display='none';
-  /* 폰에는 폴더 열기가 없다. 이름을 사실대로 바꾼다 */
-  if(!window.showDirectoryPicker){
-    $('btnFolder').lastChild.textContent='여러 개 고르기';
+  /* 폰에는 폴더 열기가 없다. 이름을 사실대로 바꾼다.
+     showDirectoryPicker 가 있어도 폰에서는 실제로 되지 않으므로 canPickFolder() 로 판단한다 */
+  if(!canPickFolder()){
+    const t=$('btnFolder').lastChild;
+    if(t) t.textContent='여러 개 고르기';
+    $('btnFolder').title='음악·영상 파일을 여러 개 고릅니다';
     $('btnFolder2').textContent='여러 개 고르기';
     $('btnFiles2').textContent='한 개만 고르기';
+    /* 안드로이드 파일 선택기는 확장자와 와일드카드를 섞으면
+       파일이 흐릿하게 나와 고를 수 없는 경우가 있다. 폰에서는 단순하게 둔다 */
+    $('fileInput').setAttribute('accept','audio/*,video/*');
   }
 }
 $('eqOffBtn').textContent = S.eqOn ? 'EQ 끄기' : 'EQ 켜기';
