@@ -1014,6 +1014,18 @@ body.car #floatbar svg{width:28px;height:28px}
       <!-- 도구 -->
       <div class="tabpage" data-page="tool">
         <div class="grp">
+          <h3>홈 화면에 두기</h3>
+          <div class="btnline">
+            <button id="btnInstall">홈 화면에 설치</button>
+          </div>
+          <div class="note" style="margin-top:10px">
+            <b id="installState">확인 중</b><br>
+            설치하면 주소창 없는 앱으로 열리고, <b>인터넷이 없어도</b> 열립니다.
+            음악·영상 파일은 늘 이 기기 안에만 있습니다.
+          </div>
+        </div>
+
+        <div class="grp">
           <h3>재생목록</h3>
           <div class="btnline">
             <button id="plSave">지금 목록 저장</button>
@@ -2538,6 +2550,54 @@ document.querySelectorAll('#deckctl .spd').forEach(b=>{
   });
 });
 
+/* ── 홈 화면에 설치 ────────────────────────────────────────────────
+   크롬은 설치가 가능해지면 beforeinstallprompt 를 던진다. 그것을 붙잡아
+   두었다가 버튼을 눌렀을 때 띄운다. 메뉴에서 찾지 않아도 되게 하려는 것. */
+let installEvent=null;
+const isInstalled = () =>
+  matchMedia('(display-mode: standalone)').matches ||
+  matchMedia('(display-mode: fullscreen)').matches ||
+  window.navigator.standalone === true;
+
+function installState(){
+  const el=$('installState'), btn=$('btnInstall');
+  if(!el||!btn) return;
+  if(isInstalled()){
+    el.textContent='이미 홈 화면에 설치되어 있습니다.';
+    btn.textContent='설치됨'; btn.disabled=true; btn.style.opacity='.5';
+  }else if(installEvent){
+    el.textContent='설치할 수 있습니다. 아래 버튼을 누르십시오.';
+    btn.textContent='홈 화면에 설치'; btn.disabled=false; btn.style.opacity='';
+  }else{
+    /* 사파리(아이폰)와 삼성 인터넷은 이 신호를 주지 않는다 */
+    const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+    el.textContent = ios
+      ? '아이폰은 사파리에서 아래쪽 공유(⬆) → 「홈 화면에 추가」를 누르십시오.'
+      : '브라우저 메뉴(⋮) → 「홈 화면에 추가」 또는 「앱 설치」를 누르십시오.';
+    btn.textContent='설치 방법 보기'; btn.disabled=false; btn.style.opacity='';
+  }
+}
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); installEvent=e; installState();
+  toast('홈 화면에 설치할 수 있습니다 — 도구 탭에서', 4000);
+});
+window.addEventListener('appinstalled', ()=>{
+  installEvent=null; installState();
+  toast('홈 화면에 설치했습니다', 4000);
+});
+$('btnInstall').addEventListener('click', async()=>{
+  if(installEvent){
+    installEvent.prompt();
+    try{ await installEvent.userChoice; }catch(e){}
+    installEvent=null; installState();
+  }else{
+    const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+    alert(ios
+      ? '아이폰\n\n1. 사파리로 이 주소를 엽니다\n2. 아래쪽 가운데 공유 단추(⬆)\n3. 「홈 화면에 추가」\n4. 「추가」'
+      : '안드로이드\n\n1. 크롬으로 이 주소를 엽니다\n2. 오른쪽 위 점 세 개(⋮)\n3. 「홈 화면에 추가」 또는 「앱 설치」\n4. 「설치」\n\n이미 예전 이름으로 설치해 두셨다면\n먼저 홈 화면의 옛 아이콘을 길게 눌러 지우십시오.');
+  }
+});
+
 $('diagRun').addEventListener('click',()=>{ runDiag(); toast('점검 완료'); });
 $('diagCopy').addEventListener('click',async()=>{
   const t=diagText();
@@ -2959,7 +3019,7 @@ applyTheme();
 $('togMood').classList.toggle('on', S.mood);
 if(S.mood) paintMood(); else resetMood();
 refreshVizColors();
-plRefresh(); abSync(); runDiag(); soundState();
+plRefresh(); abSync(); runDiag(); soundState(); installState();
 $('btnMutePanel').textContent = media.muted ? '음소거 풀기' : '음소거 켜기';
 
 /* 오프라인 담당 — http(s) 로 열렸을 때만. file:// 에서는 조용히 넘어간다 */
