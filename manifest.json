@@ -3,18 +3,18 @@
   "short_name": "승언리_음악다방",
   "description": "광고 없는 음악·영상 재생기. LP 음질과 이퀄라이저, 오프라인 재생까지. 파일은 이 기기를 벗어나지 않습니다.",
   "lang": "ko",
-  "start_url": "./",
-  "scope": "./",
-  "id": "/",
+  "start_url": "/Player/",
+  "scope": "/Player/",
+  "id": "/Player/",
   "display": "standalone",
-  "display_override": ["standalone", "fullscreen", "minimal-ui"],
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
   "background_color": "#eceff6",
   "theme_color": "#eceff6",
   "categories": ["music", "entertainment"],
   "icons": [
-    { "src": "icons/cat-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/cat-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/cat-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/Player/icons/cat-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/Player/icons/cat-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/Player/icons/cat-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }

@@ -2519,6 +2519,11 @@ function diagRows(){
     ['음향 엔진',          AE.failed ? ['못 만듦 · 원본 재생','mid']
                           : AE.ok ? (AE.ctx.state==='running' ? ['정상','ok'] : [AE.ctx.state,'no'])
                           : ['아직 안 켬','mid']],
+    /* 설치가 왜 안 되는지 여기서 바로 보이게 한다 */
+    ['앱 설치 상태',       isInstalled() ? ['이미 설치됨','ok']
+                          : inApp ? ['앱 안의 브라우저 · 불가','no']
+                          : installEvent ? ['바로 설치 가능','ok']
+                          : ['크롬 메뉴에서 수동','mid']],
   ];
 }
 function runDiag(){
@@ -2585,6 +2590,29 @@ $('btnSave').addEventListener('click', async()=>{
     return;
   }
   const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  /* 설치 신호가 오지 않은 이유를 추측하지 말고 직접 재서 알려 준다 */
+  if(!inApp && !ios){
+    const why=[];
+    if(!window.isSecureContext) why.push('보안 연결(https)이 아닙니다');
+    try{
+      const r=await fetch('manifest.json',{cache:'reload'});
+      if(!r.ok) why.push('manifest.json 을 못 읽습니다 ('+r.status+')');
+      else{ const m=await r.json();
+            if(!m.icons || !m.icons.some(i=>/512/.test(i.sizes))) why.push('512 아이콘이 없습니다'); }
+    }catch(e){ why.push('manifest.json 오류'); }
+    const reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null;
+    if(!reg || !reg.active) why.push('오프라인 기능이 아직 준비되지 않았습니다 — 잠시 뒤 다시');
+    if(why.length){
+      alert('아직 설치할 수 없습니다.\n\n· ' + why.join('\n· ') + '\n\n잠시 뒤 다시 눌러 보십시오.');
+      return;
+    }
+    alert('크롬 메뉴(⋮)를 누른 뒤 목록을 아래로 쭉 내리십시오.\n\n'
+        + '「홈 화면에 추가」 또는 「앱 설치」가 아래쪽에 있습니다.\n'
+        + '(공유·페이지에서 찾기·번역 아래)\n\n'
+        + '그 항목이 아예 없다면 이미 설치되어 있는 것입니다.\n'
+        + '홈 화면에서 옛 아이콘을 길게 눌러 지운 뒤 다시 시도하십시오.');
+    return;
+  }
   if(inApp){
     /* 앱 안의 브라우저 — 주소를 복사해 주고 크롬으로 옮기게 한다 */
     let ok=false;
@@ -2602,9 +2630,8 @@ $('btnSave').addEventListener('click', async()=>{
         + '3. 크롬에서 다시 이 단추를 누르면 설치됩니다');
     return;
   }
-  /* 사파리와 삼성 인터넷은 설치 신호를 주지 않는다. 그때만 방법을 알려 준다 */
-  alert(ios ? '사파리 아래쪽 공유 단추(⬆) → 홈 화면에 추가'
-            : '브라우저 메뉴(⋮) → 홈 화면에 추가');
+  /* 아이폰 사파리는 설치 신호를 주지 않는다 */
+  alert('사파리 아래쪽 가운데 공유 단추(⬆)를 누른 뒤\n목록을 내려 「홈 화면에 추가」를 고르십시오.');
 });
 
 $('diagRun').addEventListener('click',()=>{ runDiag(); toast('점검 완료'); });
