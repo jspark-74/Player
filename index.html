@@ -377,6 +377,12 @@ body.playing #deckled{background:var(--c2);box-shadow:0 0 0 1px rgba(0,0,0,.7),0
 #btnSave svg{width:14px;height:14px;fill:currentColor;flex:0 0 auto}
 #btnSave:active{color:var(--c1)}
 @media (hover:hover){ #btnSave:hover{color:var(--c1)} }
+/* 카톡 안에서 열렸을 때 — 여기서만 눈에 띄게 한다. 안 그러면 그냥 카톡 안에서 쓰다 만다 */
+#btnSave.go{
+  padding:12px 20px;min-height:48px;font-size:var(--t3);font-weight:700;
+  color:var(--on-c1,#fff);background:var(--c1);box-shadow:var(--shadow-2);
+}
+#btnSave.go svg{width:18px;height:18px}
 
 /* ---------- 알림 · 경고 ---------- */
 #codecwarn{
@@ -2572,12 +2578,31 @@ const isInstalled = () =>
 const inApp = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp/i
                 .test(navigator.userAgent);
 
-/* 이미 설치했거나 파일로 연 경우에는 버튼을 숨긴다 */
+const isAndroid = /Android/i.test(navigator.userAgent);
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+
+/* 카톡 안에서 크롬을 한 번에 여는 주소.
+   「⋮ → 다른 브라우저로 열기」를 찾아 헤매지 않게 하려는 것. */
+function chromeIntentURL(){
+  const u = location.href;
+  if(isAndroid){
+    return 'intent://' + location.host + location.pathname + location.search +
+           '#Intent;scheme=https;package=com.android.chrome;' +
+           'S.browser_fallback_url=' + encodeURIComponent(u) + ';end';
+  }
+  if(isIOS) return u.replace(/^https?:\/\//, 'googlechrome://');
+  return u;
+}
+
+/* 이미 설치했거나 파일로 연 경우에는 버튼을 숨긴다.
+   앱 안의 브라우저에서는 「설치」 대신 「크롬에서 열기」를 보여 준다 —
+   할 수 없는 일을 시키면 그냥 포기해 버린다. */
 function installState(){
   const btn=$('btnSave'); if(!btn) return;
   btn.style.display = (isInstalled() || location.protocol==='file:') ? 'none' : 'inline-flex';
   const sub=$('saveSub');
-  if(sub) sub.textContent = inApp ? '크롬으로 열어야 설치돼요' : '앱으로 설치';
+  if(sub) sub.textContent = inApp ? '크롬에서 열기' : '앱으로 설치';
+  btn.classList.toggle('go', inApp);
 }
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvent=e; installState(); });
 window.addEventListener('appinstalled', ()=>{ installEvent=null; installState(); toast('홈 화면에 저장했습니다'); });
@@ -2614,20 +2639,18 @@ $('btnSave').addEventListener('click', async()=>{
     return;
   }
   if(inApp){
-    /* 앱 안의 브라우저 — 주소를 복사해 주고 크롬으로 옮기게 한다 */
-    let ok=false;
-    try{ await navigator.clipboard.writeText(location.href); ok=true; }catch(e){
-      const ta=document.createElement('textarea');
-      ta.value=location.href; ta.style.cssText='position:fixed;opacity:0';
-      document.body.appendChild(ta); ta.select();
-      try{ ok=document.execCommand('copy'); }catch(e2){}
-      document.body.removeChild(ta);
-    }
-    alert('지금은 카카오톡 안의 브라우저라 설치할 수 없습니다.\n\n'
-        + (ok ? '주소를 복사해 두었습니다.\n\n' : '')
-        + '1. 오른쪽 아래 ⋮ 를 누릅니다\n'
-        + '2. 「다른 브라우저로 열기」 또는 「Chrome으로 열기」\n'
-        + '3. 크롬에서 다시 이 단추를 누르면 설치됩니다');
+    /* 앱 안의 브라우저 — 크롬을 바로 띄운다.
+       설명을 읽게 하지 않고 한 번 눌러 넘어가게 하는 것이 핵심이다. */
+    try{ await navigator.clipboard.writeText(location.href); }catch(e){}
+    const back = setTimeout(()=>{
+      /* 크롬이 안 열렸을 때만 방법을 알려 준다 */
+      alert('크롬이 열리지 않았습니다.\n\n'
+          + '주소를 복사해 두었으니\n'
+          + '크롬을 직접 열고 주소창에 붙여넣으십시오.');
+    }, 2500);
+    window.addEventListener('pagehide', ()=>clearTimeout(back), {once:true});
+    window.addEventListener('blur',     ()=>clearTimeout(back), {once:true});
+    location.href = chromeIntentURL();
     return;
   }
   /* 아이폰 사파리는 설치 신호를 주지 않는다 */
