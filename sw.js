@@ -2,18 +2,18 @@
    한 번 열어 두면 인터넷이 끊겨도, 비행기 모드에서도 열린다.
    음악·영상 파일은 사용자가 기기에서 직접 고르는 것이라 여기 담기지 않는다. */
 
-const CACHE  = 'player-v3';
+const CACHE  = 'player-v4';
 const APP    = './';
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './favicon.ico',
-  './icons/cat-32.png',
-  './icons/cat-192.png',
-  './icons/cat-512.png',
-  './icons/cat-maskable-512.png',
-  './icons/cat-apple-180.png'
+  './icons/cat2-32.png',
+  './icons/cat2-192.png',
+  './icons/cat2-512.png',
+  './icons/cat2-maskable-512.png',
+  './icons/cat2-apple-180.png'
 ];
 
 self.addEventListener('install', e => {

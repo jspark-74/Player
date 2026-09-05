@@ -13,8 +13,8 @@
   "theme_color": "#eceff6",
   "categories": ["music", "entertainment"],
   "icons": [
-    { "src": "/Player/icons/cat-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/Player/icons/cat-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/Player/icons/cat-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/Player/icons/cat2-192.png",          "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/Player/icons/cat2-512.png",          "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/Player/icons/cat2-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
