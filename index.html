@@ -2717,20 +2717,38 @@ function chromeIntentURL(){
   return u;
 }
 
-/* 이미 설치했거나 파일로 연 경우에는 버튼을 숨긴다.
-   앱 안의 브라우저에서는 「설치」 대신 「크롬에서 열기」를 보여 준다 —
-   할 수 없는 일을 시키면 그냥 포기해 버린다. */
+/* ★순서가 중요하다.
+   카카오톡 같은 앱 안의 웹뷰는 display-mode 를 standalone 으로 보고한다.
+   그래서 '설치됨' 을 먼저 검사하면 카톡 안에서 버튼이 통째로 사라진다.
+   앱 안의 브라우저인지를 **가장 먼저** 본다. */
 function installState(){
-  const btn=$('btnSave'); if(!btn) return;
-  btn.style.display = (isInstalled() || location.protocol==='file:') ? 'none' : 'inline-flex';
-  const sub=$('saveSub');
-  if(sub) sub.textContent = inApp ? '크롬에서 열기' : '앱으로 설치';
-  btn.classList.toggle('go', inApp);
+  const btn=$('btnSave'), sub=$('saveSub');
+  if(!btn||!sub) return;
+  btn.classList.remove('go');
+  if(location.protocol==='file:'){ btn.style.display='none'; return; }
+
+  if(inApp){                              // ① 카톡·인스타 등 앱 안 — 설치 자체가 불가능
+    sub.textContent='크롬에서 열기';
+    btn.classList.add('go');
+    btn.style.display='inline-flex';
+    return;
+  }
+  if(isInstalled()){                      // ② 이미 홈 화면에 있다
+    sub.textContent='이미 설치됨 · 아이콘 바꾸려면 지우고 다시';
+    btn.style.display='inline-flex';
+    return;
+  }
+  sub.textContent='앱으로 설치';           // ③ 설치할 수 있다
+  btn.style.display='inline-flex';
 }
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvent=e; installState(); });
 window.addEventListener('appinstalled', ()=>{ installEvent=null; installState(); toast('홈 화면에 저장했습니다'); });
 
 $('btnSave').addEventListener('click', async()=>{
+  if(!inApp && isInstalled() && !installEvent){
+    alert(['이미 홈 화면에 있습니다.', '', '아이콘이 옛것이면 홈 화면에서 그 아이콘을', '길게 눌러 지운 뒤 이 화면에서 다시 설치하십시오.'].join(String.fromCharCode(10)));
+    return;
+  }
   if(installEvent){
     installEvent.prompt();
     try{ await installEvent.userChoice; }catch(e){}
