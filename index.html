@@ -2723,30 +2723,46 @@ function chromeIntentURL(){
    카카오톡 같은 앱 안의 웹뷰는 display-mode 를 standalone 으로 보고한다.
    그래서 '설치됨' 을 먼저 검사하면 카톡 안에서 버튼이 통째로 사라진다.
    앱 안의 브라우저인지를 **가장 먼저** 본다. */
+/* ★브라우저 이름을 맞히려 하지 않는다.
+   카톡이 띄우는 '크롬 커스텀 탭' 은 주소는 크롬인데 설치 기능이 없다.
+   그래서 「설치 신호가 실제로 왔는가」로만 판단한다.
+   신호가 안 왔으면 진짜 크롬 앱으로 넘겨 준다 — 거기서는 뜬다. */
+let promptWaited = false;          // 설치 신호를 기다려 봤는가
 function installState(){
   const btn=$('btnSave'), sub=$('saveSub');
   if(!btn||!sub) return;
   btn.classList.remove('go');
   if(location.protocol==='file:'){ btn.style.display='none'; return; }
-
-  if(inApp){                              // ① 카톡·인스타 등 앱 안 — 설치 자체가 불가능
-    sub.textContent='크롬에서 열기';
-    btn.classList.add('go');
-    btn.style.display='inline-flex';
-    return;
-  }
-  if(isInstalled()){                      // ② 이미 홈 화면에 있다
-    sub.textContent='이미 설치됨 · 아이콘 바꾸려면 지우고 다시';
-    btn.style.display='inline-flex';
-    return;
-  }
-  sub.textContent='앱으로 설치';           // ③ 설치할 수 있다
   btn.style.display='inline-flex';
+
+  if(installEvent){                       // ① 지금 바로 설치할 수 있다
+    sub.textContent='앱으로 설치'; return;
+  }
+  if(inApp || (promptWaited && isAndroid && !isInstalled())){
+    sub.textContent='크롬 앱에서 열기';    // ② 이 창에서는 설치가 안 된다 → 진짜 크롬으로
+    btn.classList.add('go');  return;
+  }
+  if(isInstalled()){                      // ③ 이미 홈 화면에 있다
+    sub.textContent='이미 설치됨 · 아이콘 바꾸려면 지우고 다시'; return;
+  }
+  sub.textContent='앱으로 설치';           // ④ 아직 신호를 기다리는 중
 }
+/* 3초 안에 설치 신호가 안 오면 이 창에서는 설치가 안 되는 것이다 */
+setTimeout(()=>{ promptWaited = true; installState(); }, 3000);
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvent=e; installState(); });
 window.addEventListener('appinstalled', ()=>{ installEvent=null; installState(); toast('홈 화면에 저장했습니다'); });
 
 $('btnSave').addEventListener('click', async()=>{
+  if(!inApp && !installEvent && isAndroid && !isInstalled()){
+    /* 설치 신호가 없는 창(커스텀 탭 등) — 진짜 크롬 앱으로 넘긴다 */
+    try{ await navigator.clipboard.writeText(location.href); }catch(e){}
+    const back=setTimeout(()=>alert(['크롬 앱이 열리지 않았습니다.','',
+      '주소를 복사해 두었으니 크롬을 직접 열고','주소창에 붙여넣으십시오.'].join(String.fromCharCode(10))), 2500);
+    addEventListener('pagehide', ()=>clearTimeout(back), {once:true});
+    addEventListener('blur',     ()=>clearTimeout(back), {once:true});
+    location.href = chromeIntentURL();
+    return;
+  }
   if(!inApp && isInstalled() && !installEvent){
     alert(['이미 홈 화면에 있습니다.', '', '아이콘이 옛것이면 홈 화면에서 그 아이콘을', '길게 눌러 지운 뒤 이 화면에서 다시 설치하십시오.'].join(String.fromCharCode(10)));
     return;
@@ -3240,7 +3256,7 @@ if(S.mood) paintMood(); else resetMood();
 refreshVizColors();
 plRefresh(); abSync(); runDiag(); soundState(); installState();
 /* 어느 판이 깔렸는지 화면에 찍는다. 캐시로 옛 판이 도는지 한눈에 안다 */
-$('buildStamp').textContent = '판 09-05 21:58';
+$('buildStamp').textContent = '판 09-05 22:40';
 $('btnMutePanel').textContent = media.muted ? '음소거 풀기' : '음소거 켜기';
 
 /* 오프라인 담당 — http(s) 로 열렸을 때만. file:// 에서는 조용히 넘어간다 */
