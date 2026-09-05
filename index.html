@@ -2731,16 +2731,23 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 /* 카톡 안에서 크롬을 한 번에 여는 주소.
    「⋮ → 다른 브라우저로 열기」를 찾아 헤매지 않게 하려는 것. */
-function chromeIntentURL(){
+const isKakao = /KAKAOTALK/i.test(navigator.userAgent);
+/* 카카오톡 웹뷰는 intent:// 를 그냥 무시한다. 카카오 전용 문이 따로 있다.
+   그래서 ① 카카오 문 → ② 안드로이드 인텐트 순으로 두드린다. */
+function externalOpenURLs(){
   const u = location.href;
+  const out = [];
+  if(isKakao) out.push('kakaotalk://web/openExternal?url=' + encodeURIComponent(u));
   if(isAndroid){
-    return 'intent://' + location.host + location.pathname + location.search +
-           '#Intent;scheme=https;package=com.android.chrome;' +
-           'S.browser_fallback_url=' + encodeURIComponent(u) + ';end';
+    out.push('intent://' + location.host + location.pathname + location.search +
+             '#Intent;scheme=https;package=com.android.chrome;end');
+    out.push('intent://' + location.host + location.pathname + location.search +
+             '#Intent;scheme=https;action=android.intent.action.VIEW;end');
   }
-  if(isIOS) return u.replace(/^https?:\/\//, 'googlechrome://');
-  return u;
+  if(isIOS) out.push(u.replace(/^https?:\/\//, 'googlechrome://'));
+  return out;
 }
+function chromeIntentURL(){ return externalOpenURLs()[0] || location.href; }
 
 /* ★순서가 중요하다.
    카카오톡 같은 앱 안의 웹뷰는 display-mode 를 standalone 으로 보고한다.
@@ -2796,11 +2803,23 @@ $('btnSave').addEventListener('click', async()=>{
                         '(크롬에서 이 버튼을 한 번 더 누르면 됩니다)'].join(String.fromCharCode(10)));
     if(!go) return;
     try{ await navigator.clipboard.writeText(location.href); }catch(e){}
-    const back=setTimeout(()=>alert(['크롬 앱이 열리지 않았습니다.','',
-      '주소를 복사해 두었으니','크롬을 직접 열고 주소창에 붙여넣으십시오.'].join(String.fromCharCode(10))), 2500);
-    addEventListener('pagehide', ()=>clearTimeout(back), {once:true});
-    addEventListener('blur',     ()=>clearTimeout(back), {once:true});
-    location.href = chromeIntentURL();
+    let left = false;
+    const mark = () => { left = true; };
+    addEventListener('pagehide', mark, {once:true});
+    addEventListener('blur',     mark, {once:true});
+    /* 되는 문이 하나뿐이 아니다. 차례로 두드린다 */
+    const doors = externalOpenURLs();
+    for(let i=0; i<doors.length && !left; i++){
+      try{ location.href = doors[i]; }catch(e){}
+      await new Promise(r=>setTimeout(r, 900));
+    }
+    setTimeout(()=>{
+      if(left) return;
+      alert(['자동으로 넘어가지 못했습니다.','',
+             '오른쪽 위 점 세 개를 누른 뒤',
+             '「다른 브라우저로 열기」를 고르십시오.','',
+             '주소는 복사해 두었습니다.'].join(String.fromCharCode(10)));
+    }, 700);
     return;
   }
   /* ⑤ 그 밖 (데스크톱 등) */
@@ -3247,7 +3266,7 @@ if(S.mood) paintMood(); else resetMood();
 refreshVizColors();
 plRefresh(); abSync(); runDiag(); soundState(); installState();
 /* 어느 판이 깔렸는지 화면에 찍는다. 캐시로 옛 판이 도는지 한눈에 안다 */
-$('buildStamp').textContent = '판 09-05 22:49';
+$('buildStamp').textContent = '판 09-05 22:57';
 $('btnMutePanel').textContent = media.muted ? '음소거 풀기' : '음소거 켜기';
 
 /* 오프라인 담당 — http(s) 로 열렸을 때만. file:// 에서는 조용히 넘어간다 */
