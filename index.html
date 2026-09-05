@@ -579,8 +579,19 @@ body.dark .diagrow .v.ok{color:#5ad18a} body.dark .diagrow .v.no{color:#ff8a8a} 
   background:linear-gradient(transparent,rgba(0,0,0,.92));backdrop-filter:none;transition:opacity .3s}
 #app:fullscreen #bar .now .a{color:#fff}
 #app:fullscreen #bar .now .b,#app:fullscreen .time{color:#d6dae6}
-#app:fullscreen.idle #bar{opacity:0;pointer-events:none}
 #app:fullscreen.idle{cursor:none}
+/* 전체화면에서는 조작줄을 눌러 놓는다. 폰에서 화면의 20% 를 먹던 자리다 */
+#app:fullscreen #bar{gap:4px;padding:8px 12px calc(10px + var(--safe-b));
+  transition:opacity .3s ease,transform .3s ease}
+#app:fullscreen .now{display:none}          /* 제목은 한 줄을 통째로 먹는다 */
+#app:fullscreen .ib{width:42px;height:42px;border:0;background:rgba(255,255,255,.14);color:#fff}
+#app:fullscreen .ib svg{width:20px;height:20px}
+#app:fullscreen #play{width:54px;height:54px}
+#app:fullscreen #play svg{width:24px;height:24px}
+#app:fullscreen #seekwrap{gap:8px}
+#app:fullscreen input[type=range]{height:34px}
+#app:fullscreen.idle #bar{opacity:0;transform:translateY(14px);pointer-events:none}
+#app:fullscreen.idle #floatbar{opacity:0;pointer-events:none;transition:opacity .3s}
 
 /* ==========================================================================
    휴대폰
@@ -708,7 +719,7 @@ body.car #floatbar svg{width:28px;height:28px}
     <ul id="list"></ul>
     <div id="selbar">
       <span class="n" id="selN">0개 선택</span>
-      <button id="selAll">모두</button>
+      <button id="selAll">전체 선택</button>
       <button id="selNone">해제</button>
       <button class="pri" id="selPlay">선택 재생</button>
     </div>
@@ -779,6 +790,7 @@ body.car #floatbar svg{width:28px;height:28px}
         <p>mp3 · m4a · flac · wav · ogg · mp4 · webm · m4v<br>
            광고 없음 · 수집 없음 · 인터넷 연결 없음. 파일은 이 기기를 벗어나지 않습니다.</p>
         <div class="btns">
+          <button id="btnResume" style="display:none">지난번 이어서</button>
           <button id="btnFolder2">폴더 열기</button>
           <button class="ghost" id="btnFiles2">파일 고르기</button>
         </div>
@@ -1631,8 +1643,116 @@ function addTracks(list, label){
   rebuildOrder();
   render();
   $('empty').classList.toggle('gone', S.tracks.length>0);
-  toast(`${fresh.length}개 추가${label?' · '+label:''}`);
-  if(had===0 && S.tracks.length) play(S.order[0], {autoplay:false});
+
+  /* 지난번 목록을 되살리는 중이면 순서와 듣던 곡을 그대로 돌려놓는다 */
+  let resumed = 0, jump = -1;
+  if(pendingResume){
+    const want = new Map(pendingResume.paths.map((p,i)=>[p.normalize('NFC'), i]));
+    const hit  = S.tracks.filter(x=>want.has(x.path.normalize('NFC')));
+    if(hit.length){
+      resumed = hit.length;
+      /* 폴더를 먼저 되돌리고 순서를 매긴다.
+         반대로 하면 rebuildOrder() 가 애써 맞춘 순서를 도로 흩어 놓는다 */
+      if(pendingResume.folder){
+        const opt=[...$('folderSel').options].some(o=>o.value===pendingResume.folder);
+        if(opt){ S.folder=pendingResume.folder; $('folderSel').value=S.folder; }
+      }
+      rebuildOrder();
+      const key = i => {
+        const p = S.tracks[i].path.normalize('NFC');
+        return want.has(p) ? want.get(p) : 1e9;
+      };
+      S.order.sort((a,b)=>key(a)-key(b));
+      if(pendingResume.cur){
+        const c = pendingResume.cur.normalize('NFC');
+        jump = S.tracks.findIndex(x=>x.path.normalize('NFC')===c);
+      }
+    }
+    pendingResume = null;
+  }
+  render();
+
+  toast(resumed ? `지난번 ${resumed}곡을 되살렸습니다`
+                : `${fresh.length}개 추가${label?' · '+label:''}`, resumed?3600:2200);
+  if(jump >= 0)                      play(jump, {autoplay:false});
+  else if(had===0 && S.tracks.length) play(S.order[0], {autoplay:false});
+  saveRecent();
+}
+
+/* ── 지난번 목록·폴더 기억 ───────────────────────────────────────
+   브라우저는 폴더 권한을 다음 실행까지 들고 있지 못한다(안드로이드).
+   그래서 두 갈래로 기억한다.
+     ① 폴더 손잡이를 저장할 수 있는 기기 → 다음에 한 번 눌러 그대로 연다
+     ② 안 되는 기기 → 파일 목록·순서·듣던 곡을 기억했다가
+        파일을 다시 고르면 그 자리로 되돌려 놓는다 */
+let pendingResume = null;
+
+function saveRecent(){
+  try{
+    if(!S.tracks.length) return;
+    localStorage.setItem(LS+'recent', JSON.stringify({
+      n: S.tracks.length,
+      paths: S.tracks.map(x=>x.path).slice(0, 3000),
+      cur: (S.cur>=0 && S.tracks[S.cur]) ? S.tracks[S.cur].path : null,
+      folder: S.folder || ''
+    }));
+  }catch(e){}
+}
+function loadRecent(){
+  try{ return JSON.parse(localStorage.getItem(LS+'recent')||'null'); }catch(e){ return null; }
+}
+
+/* 폴더 손잡이 보관 — 되는 브라우저에서만 */
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('음악다방',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('kv');
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function idbPut(k,v){
+  try{ const d=await idbOpen();
+    return new Promise((res,rej)=>{ const x=d.transaction('kv','readwrite');
+      x.objectStore('kv').put(v,k); x.oncomplete=()=>res(true); x.onerror=()=>rej(x.error); });
+  }catch(e){ return false; }
+}
+async function idbGet(k){
+  try{ const d=await idbOpen();
+    return await new Promise((res,rej)=>{ const x=d.transaction('kv','readonly');
+      const q=x.objectStore('kv').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); });
+  }catch(e){ return null; }
+}
+
+let savedDir = null;
+async function resumeInit(){
+  const btn=$('btnResume'); if(!btn) return;
+  savedDir = await idbGet('dir');
+  if(savedDir && savedDir.queryPermission){
+    btn.textContent = `지난 폴더 열기 · ${savedDir.name}`;
+    btn.style.display=''; return;
+  }
+  const r = loadRecent();
+  if(r && r.n){ btn.textContent = `지난번 이어서 · ${r.n}곡`; btn.style.display=''; }
+}
+async function resumeGo(){
+  if(savedDir && savedDir.requestPermission){
+    let p = await savedDir.queryPermission({mode:'read'});
+    if(p !== 'granted') p = await savedDir.requestPermission({mode:'read'});
+    if(p === 'granted'){
+      toast('지난 폴더를 읽는 중…', 9000);
+      const out=[];
+      try{ await walkDirHandle(savedDir,'',out,0); }
+      catch(e){ toast('폴더를 읽지 못했습니다', 3500); return; }
+      pendingResume = loadRecent();
+      addTracks(out, savedDir.name);
+      return;
+    }
+  }
+  /* 손잡이를 못 쓰는 기기 — 파일을 다시 고르게 하고 자리를 되돌려 놓는다 */
+  pendingResume = loadRecent();
+  if(!pendingResume){ toast('기억된 목록이 없습니다'); return; }
+  toast('파일을 다시 골라 주십시오 — 순서와 듣던 곡은 그대로 돌아옵니다', 4200);
+  fallbackPick();
 }
 /* 폴더 열기가 실패했을 때 갈 곳.
    안드로이드 크롬은 webkitdirectory 를 지원하지 않으므로 그리로 보내면 아무 일도 안 일어난다.
@@ -1657,6 +1777,8 @@ async function openFolder(){
   const out=[];
   try{ await walkDirHandle(dir,'',out,0); }
   catch(e){ toast('폴더를 읽지 못했습니다', 3500); return; }
+  idbPut('dir', dir);                 /* 다음에 한 번 눌러 열 수 있게 */
+  savedDir = dir;
   addTracks(out, dir.name);
 }
 /* 드래그 (데스크톱) */
@@ -1875,6 +1997,7 @@ async function play(index, opt){
   savePos();
   AB.a=AB.b=null; abSync();      // 곡이 바뀌면 구간 반복은 풀린다
   S.cur=index;
+  saveRecent();                  // 다음에 이 곡부터 이어 들을 수 있게
 
   let file;
   try{ file=await t.getFile(); t.size=file.size; }
@@ -2970,13 +3093,30 @@ bindTog('togMood', S.mood, v=>{
   toast(v?'배경이 곡 분위기를 따릅니다':'배경색 고정');
 });
 media.addEventListener('dblclick',toggleFull);
-media.addEventListener('click',toggle);
-$('art').addEventListener('click',e=>{ if(e.target.id!=='viz') toggle(); });
+/* 전체화면 조작줄 자동 숨김.
+   마우스가 없는 폰에서는 mousemove 가 오지 않아 영원히 숨지 않았다 — 그게 화면을 가리던 원인.
+   숨은 상태에서 첫 번째 탭은 '보이기'만 하고 재생을 건드리지 않는다. */
 let idleTimer;
-$('main').addEventListener('mousemove',()=>{
-  const a=$('app'); a.classList.remove('idle');
+function armIdle(){
+  const a=$('app');
+  a.classList.remove('idle');
   clearTimeout(idleTimer);
-  if(document.fullscreenElement) idleTimer=setTimeout(()=>a.classList.add('idle'),2200);
+  if(document.fullscreenElement) idleTimer=setTimeout(()=>a.classList.add('idle'), 2600);
+}
+const barHidden = () => !!document.fullscreenElement && $('app').classList.contains('idle');
+
+media.addEventListener('click',()=>{ if(barHidden()){ armIdle(); return; } toggle(); });
+$('art').addEventListener('click',e=>{
+  if(e.target.id==='viz') return;
+  if(barHidden()){ armIdle(); return; }
+  toggle();
+});
+$('main').addEventListener('mousemove', armIdle);
+$('main').addEventListener('pointerdown', armIdle);
+$('bar').addEventListener('pointerdown', e=>{ e.stopPropagation(); armIdle(); });
+document.addEventListener('fullscreenchange', ()=>{
+  if(document.fullscreenElement) armIdle();
+  else { clearTimeout(idleTimer); $('app').classList.remove('idle'); }
 });
 
 /* 휴대폰 좌우 쓸기 = 곡 넘기기 */
@@ -3087,6 +3227,8 @@ if('serviceWorker' in navigator && /^https?:/.test(location.protocol)){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   });
 }
+$('btnResume').addEventListener('click', resumeGo);
+resumeInit();
 fill($('seek'));
 buildFolders();
 render();
