@@ -369,13 +369,14 @@ body.playing #deckled{background:var(--c2);box-shadow:0 0 0 1px rgba(0,0,0,.7),0
 #empty .btns button.ghost{background:var(--surf-1);border:1px solid var(--line);color:var(--tx)}
 /* 앱 설치 — 표지 맨 아래 작게. 주된 일은 곡을 고르는 것이므로 눈에 덜 띄어야 한다 */
 #btnSave{
-  display:none;align-items:center;gap:6px;margin-top:2px;
-  padding:8px 12px;border-radius:var(--rp);
-  font-size:var(--t1);font-weight:600;color:var(--tx3);
-  background:none;border:0;
+  display:none;align-items:center;justify-content:center;gap:8px;margin-top:6px;
+  min-height:46px;padding:11px 18px;border-radius:var(--r2);
+  font-size:var(--t2);font-weight:700;color:var(--c1);
+  background:var(--surf-1);border:1.5px solid var(--c1);box-shadow:var(--shadow-1);
 }
-#btnSave svg{width:14px;height:14px;fill:currentColor;flex:0 0 auto}
-#btnSave:active{color:var(--c1)}
+#btnSave svg{width:18px;height:18px;fill:currentColor;flex:0 0 auto}
+#btnSave:active{background:var(--surf-3);transform:scale(.98)}
+#buildStamp{font-size:var(--t1);color:var(--tx4);margin-top:2px;letter-spacing:.02em}
 @media (hover:hover){ #btnSave:hover{color:var(--c1)} }
 /* 카톡 안에서 열렸을 때 — 여기서만 눈에 띄게 한다. 안 그러면 그냥 카톡 안에서 쓰다 만다 */
 #btnSave.go{
@@ -798,6 +799,7 @@ body.car #floatbar svg{width:28px;height:28px}
         <p id="emptyKeys" style="margin-top:8px;color:#5a6072">
           <kbd>Space</kbd> 재생 · <kbd>F</kbd> 전체화면 · <kbd>E</kbd> 음향설정 · <kbd>?</kbd> 단축키
         </p>
+        <div id="buildStamp"></div>
         <button id="btnSave" title="이 앱을 휴대폰에 설치합니다">
           <svg viewBox="0 0 24 24"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4l-4.7-4.7 1.4-1.4L12 13.6V3h0zM5 19h14v2H5z"/></svg>
           <span id="saveSub">앱으로 설치</span>
@@ -3237,6 +3239,8 @@ $('togMood').classList.toggle('on', S.mood);
 if(S.mood) paintMood(); else resetMood();
 refreshVizColors();
 plRefresh(); abSync(); runDiag(); soundState(); installState();
+/* 어느 판이 깔렸는지 화면에 찍는다. 캐시로 옛 판이 도는지 한눈에 안다 */
+$('buildStamp').textContent = '판 09-05 21:58';
 $('btnMutePanel').textContent = media.muted ? '음소거 풀기' : '음소거 켜기';
 
 /* 오프라인 담당 — http(s) 로 열렸을 때만. file:// 에서는 조용히 넘어간다 */
