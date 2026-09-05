@@ -350,8 +350,12 @@ body.playing #deckled{background:var(--c2);box-shadow:0 0 0 1px rgba(0,0,0,.7),0
 #nowt .b{font-size:var(--t3);color:var(--tx3);margin-top:6px}
 
 /* ---------- 빈 화면 ---------- */
-#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:26px;text-align:center;padding:24px;color:var(--tx3)}
+/* ★justify-content:center 로 두면 내용이 화면보다 길 때 위아래가 잘려 나간다.
+   실제로 카톡 창(주소막대가 있어 화면이 짧다)에서 설치 단추가 통째로 잘렸다.
+   safe center + 세로 스크롤로 어떤 높이에서도 끝까지 닿게 한다. */
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:safe center;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  gap:18px;text-align:center;padding:20px;color:var(--tx3)}
 #empty h1+p{margin-top:-14px}          /* 제목과 설명은 한 덩어리로 붙인다 */
 #empty.gone{display:none}
 #empty .bigicon{width:104px;height:104px;border-radius:50%;box-shadow:var(--shadow-3);animation:bob 5s ease-in-out infinite}
@@ -412,6 +416,11 @@ body.playing #deckled{background:var(--c2);box-shadow:0 0 0 1px rgba(0,0,0,.7),0
 }
 #floatbar button:active{background:rgba(9,10,16,.96);transform:scale(.94)}
 #floatbar .sp{flex:1}
+/* ★표지 안에 두면 화면이 짧을 때 잘려 나간다. 여기는 언제나 보인다 */
+#floatbar #fbInstall{width:auto;min-width:0;flex:0 0 auto;white-space:nowrap;padding:0 15px;gap:7px;
+  background:var(--c1);border:1px solid transparent;color:var(--on-c1,#fff);box-shadow:var(--shadow-2)}
+#fbInstall b{font-size:var(--t2);font-weight:800;letter-spacing:-.01em}
+#fbInstall svg{width:17px;height:17px}
 #floatbar svg{width:22px;height:22px;fill:currentColor}
 
 #drop{
@@ -625,6 +634,16 @@ body.dark .diagrow .v.ok{color:#5ad18a} body.dark .diagrow .v.no{color:#ff8a8a} 
   #viz{height:58%}
 }
 @media (max-height:660px){ #deck{width:min(76%,470px)} }
+/* 짧은 화면 — 표지가 한 화면에 들어오게 줄인다 */
+@media (max-height:720px){
+  #empty{gap:10px;padding:12px}
+  #empty .bigicon{width:64px;height:64px}
+  #empty h1{font-size:var(--t3)}
+  #empty p{font-size:var(--t1);line-height:1.6}
+  #empty .btns button{min-height:44px;padding:11px 18px}
+  #btnSave{display:none!important}      /* 짧은 화면에서는 위쪽 「설치」 하나만 */
+  #buildStamp{margin-top:0}
+}
 @media (max-height:480px){ #deck{width:min(58%,390px)} }
 
 /* ==========================================================================
@@ -808,6 +827,10 @@ body.car #floatbar svg{width:28px;height:28px}
 
       <div id="floatbar">
         <button id="fbList" aria-label="재생목록"><svg viewBox="0 0 24 24"><path d="M3 5h18v2H3zm0 6h12v2H3zm0 6h18v2H3z"/></svg></button>
+        <button id="fbInstall" aria-label="앱으로 설치">
+          <svg viewBox="0 0 24 24"><path d="M12 3v10.6l3.3-3.3 1.4 1.4L12 17.4l-4.7-4.7 1.4-1.4L12 13.6V3h0zM5 19h14v2H5z"/></svg>
+          <b>설치</b>
+        </button>
         <div class="sp"></div>
         <button id="fbFull" aria-label="전체화면"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg></button>
         <button id="fbPip" aria-label="작은 창"><svg viewBox="0 0 24 24"><path d="M19 11h-8v6h8v-6zm4 8V5a2 2 0 0 0-2-2H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2zm-2 .02H3V4.98h18v14.04z"/></svg></button>
@@ -2723,97 +2746,65 @@ function chromeIntentURL(){
    카카오톡 같은 앱 안의 웹뷰는 display-mode 를 standalone 으로 보고한다.
    그래서 '설치됨' 을 먼저 검사하면 카톡 안에서 버튼이 통째로 사라진다.
    앱 안의 브라우저인지를 **가장 먼저** 본다. */
-/* ★브라우저 이름을 맞히려 하지 않는다.
-   카톡이 띄우는 '크롬 커스텀 탭' 은 주소는 크롬인데 설치 기능이 없다.
-   그래서 「설치 신호가 실제로 왔는가」로만 판단한다.
-   신호가 안 왔으면 진짜 크롬 앱으로 넘겨 준다 — 거기서는 뜬다. */
-let promptWaited = false;          // 설치 신호를 기다려 봤는가
+/* ★버튼 이름은 언제나 「앱으로 설치」 하나로 고정한다.
+   상황에 따라 이름을 바꿨더니 사용자가 찾던 버튼이 사라져 버렸다.
+   이름은 그대로 두고, **누를 때** 그 창에서 되는 방법으로 안내한다. */
 function installState(){
   const btn=$('btnSave'), sub=$('saveSub');
   if(!btn||!sub) return;
-  btn.classList.remove('go');
   if(location.protocol==='file:'){ btn.style.display='none'; return; }
   btn.style.display='inline-flex';
-
-  if(installEvent){                       // ① 지금 바로 설치할 수 있다
-    sub.textContent='앱으로 설치'; return;
+  btn.classList.toggle('go', !!installEvent);       // 바로 되는 때만 눈에 띄게
+  const done = (!inApp && isInstalled());
+  sub.textContent = done ? '이미 설치됨' : '앱으로 설치';
+  const fb=$('fbInstall');
+  if(fb){
+    fb.style.display = done ? 'none' : 'flex';      // 이미 깔렸으면 감춘다
+    fb.querySelector('b').textContent = '설치';
   }
-  if(inApp || (promptWaited && isAndroid && !isInstalled())){
-    sub.textContent='크롬 앱에서 열기';    // ② 이 창에서는 설치가 안 된다 → 진짜 크롬으로
-    btn.classList.add('go');  return;
-  }
-  if(isInstalled()){                      // ③ 이미 홈 화면에 있다
-    sub.textContent='이미 설치됨 · 아이콘 바꾸려면 지우고 다시'; return;
-  }
-  sub.textContent='앱으로 설치';           // ④ 아직 신호를 기다리는 중
 }
-/* 3초 안에 설치 신호가 안 오면 이 창에서는 설치가 안 되는 것이다 */
-setTimeout(()=>{ promptWaited = true; installState(); }, 3000);
 window.addEventListener('beforeinstallprompt', e=>{ e.preventDefault(); installEvent=e; installState(); });
 window.addEventListener('appinstalled', ()=>{ installEvent=null; installState(); toast('홈 화면에 저장했습니다'); });
 
+$('fbInstall').addEventListener('click', ()=>$('btnSave').click());
 $('btnSave').addEventListener('click', async()=>{
-  if(!inApp && !installEvent && isAndroid && !isInstalled()){
-    /* 설치 신호가 없는 창(커스텀 탭 등) — 진짜 크롬 앱으로 넘긴다 */
-    try{ await navigator.clipboard.writeText(location.href); }catch(e){}
-    const back=setTimeout(()=>alert(['크롬 앱이 열리지 않았습니다.','',
-      '주소를 복사해 두었으니 크롬을 직접 열고','주소창에 붙여넣으십시오.'].join(String.fromCharCode(10))), 2500);
-    addEventListener('pagehide', ()=>clearTimeout(back), {once:true});
-    addEventListener('blur',     ()=>clearTimeout(back), {once:true});
-    location.href = chromeIntentURL();
-    return;
-  }
-  if(!inApp && isInstalled() && !installEvent){
-    alert(['이미 홈 화면에 있습니다.', '', '아이콘이 옛것이면 홈 화면에서 그 아이콘을', '길게 눌러 지운 뒤 이 화면에서 다시 설치하십시오.'].join(String.fromCharCode(10)));
-    return;
-  }
+  /* ① 바로 설치할 수 있는 창 — 한 번에 끝난다 */
   if(installEvent){
     installEvent.prompt();
     try{ await installEvent.userChoice; }catch(e){}
     installEvent=null; installState();
     return;
   }
-  const ios=/iPhone|iPad|iPod/.test(navigator.userAgent);
-  /* 설치 신호가 오지 않은 이유를 추측하지 말고 직접 재서 알려 준다 */
-  if(!inApp && !ios){
-    const why=[];
-    if(!window.isSecureContext) why.push('보안 연결(https)이 아닙니다');
-    try{
-      const r=await fetch('manifest.json',{cache:'reload'});
-      if(!r.ok) why.push('manifest.json 을 못 읽습니다 ('+r.status+')');
-      else{ const m=await r.json();
-            if(!m.icons || !m.icons.some(i=>/512/.test(i.sizes))) why.push('512 아이콘이 없습니다'); }
-    }catch(e){ why.push('manifest.json 오류'); }
-    const reg = navigator.serviceWorker ? await navigator.serviceWorker.getRegistration() : null;
-    if(!reg || !reg.active) why.push('오프라인 기능이 아직 준비되지 않았습니다 — 잠시 뒤 다시');
-    if(why.length){
-      alert('아직 설치할 수 없습니다.\n\n· ' + why.join('\n· ') + '\n\n잠시 뒤 다시 눌러 보십시오.');
-      return;
-    }
-    alert('크롬 메뉴(⋮)를 누른 뒤 목록을 아래로 쭉 내리십시오.\n\n'
-        + '「홈 화면에 추가」 또는 「앱 설치」가 아래쪽에 있습니다.\n'
-        + '(공유·페이지에서 찾기·번역 아래)\n\n'
-        + '그 항목이 아예 없다면 이미 설치되어 있는 것입니다.\n'
-        + '홈 화면에서 옛 아이콘을 길게 눌러 지운 뒤 다시 시도하십시오.');
+  /* ② 이미 홈 화면에 있다 */
+  if(!inApp && isInstalled()){
+    alert(['이미 홈 화면에 있습니다.','',
+           '아이콘이 옛것이면 홈 화면에서 그 아이콘을',
+           '길게 눌러 지운 뒤 다시 설치하십시오.'].join(String.fromCharCode(10)));
     return;
   }
-  if(inApp){
-    /* 앱 안의 브라우저 — 크롬을 바로 띄운다.
-       설명을 읽게 하지 않고 한 번 눌러 넘어가게 하는 것이 핵심이다. */
+  /* ③ 아이폰 */
+  if(isIOS){
+    alert(['사파리 아래쪽 가운데 공유 단추를 누른 뒤','',
+           '목록을 내려 「홈 화면에 추가」를 고르십시오.'].join(String.fromCharCode(10)));
+    return;
+  }
+  /* ④ 설치 기능이 없는 창(카톡 안·크롬 커스텀 탭) — 진짜 크롬으로 넘긴다.
+       확인을 먼저 받는다. 아무 설명 없이 창이 바뀌면 더 당황한다. */
+  if(isAndroid){
+    const go = confirm(['이 창에서는 설치가 안 됩니다.','',
+                        '크롬 앱으로 옮겨서 설치할까요?','',
+                        '(크롬에서 이 버튼을 한 번 더 누르면 됩니다)'].join(String.fromCharCode(10)));
+    if(!go) return;
     try{ await navigator.clipboard.writeText(location.href); }catch(e){}
-    const back = setTimeout(()=>{
-      /* 크롬이 안 열렸을 때만 방법을 알려 준다 */
-      alert('크롬이 열리지 않았습니다.\n\n'
-          + '주소를 복사해 두었으니\n'
-          + '크롬을 직접 열고 주소창에 붙여넣으십시오.');
-    }, 2500);
-    window.addEventListener('pagehide', ()=>clearTimeout(back), {once:true});
-    window.addEventListener('blur',     ()=>clearTimeout(back), {once:true});
+    const back=setTimeout(()=>alert(['크롬 앱이 열리지 않았습니다.','',
+      '주소를 복사해 두었으니','크롬을 직접 열고 주소창에 붙여넣으십시오.'].join(String.fromCharCode(10))), 2500);
+    addEventListener('pagehide', ()=>clearTimeout(back), {once:true});
+    addEventListener('blur',     ()=>clearTimeout(back), {once:true});
     location.href = chromeIntentURL();
     return;
   }
-  /* 아이폰 사파리는 설치 신호를 주지 않는다 */
-  alert('사파리 아래쪽 가운데 공유 단추(⬆)를 누른 뒤\n목록을 내려 「홈 화면에 추가」를 고르십시오.');
+  /* ⑤ 그 밖 (데스크톱 등) */
+  alert(['브라우저 메뉴에서','「앱 설치」 또는 「홈 화면에 추가」를 고르십시오.'].join(String.fromCharCode(10)));
 });
 
 $('diagRun').addEventListener('click',()=>{ runDiag(); toast('점검 완료'); });
@@ -3256,7 +3247,7 @@ if(S.mood) paintMood(); else resetMood();
 refreshVizColors();
 plRefresh(); abSync(); runDiag(); soundState(); installState();
 /* 어느 판이 깔렸는지 화면에 찍는다. 캐시로 옛 판이 도는지 한눈에 안다 */
-$('buildStamp').textContent = '판 09-05 22:40';
+$('buildStamp').textContent = '판 09-05 22:49';
 $('btnMutePanel').textContent = media.muted ? '음소거 풀기' : '음소거 켜기';
 
 /* 오프라인 담당 — http(s) 로 열렸을 때만. file:// 에서는 조용히 넘어간다 */
